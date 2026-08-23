@@ -1,0 +1,14 @@
+.env
+node_modules/
+venv/
+.venv/
+env/
+vendor/
+.idea/
+.vscode/
+*.swp
+*.swo
+.settings/
+__pycache__/
+*.py[cod]
+*$py.class
