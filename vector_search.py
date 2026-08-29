@@ -1,13 +1,12 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, BackgroundTasks, HTTPException
 import numpy as np
 from pydantic import BaseModel, Field
-from fastapi import HTTPException
 from datetime import datetime, timezone
-from fastapi import BackgroundTasks
 
 app = FastAPI()
 
 SEARCH_LOGS: list[dict] = []
+
 def log_query(k: int, top_score: float, storage: str = "memory"):
     log_entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -19,9 +18,13 @@ def log_query(k: int, top_score: float, storage: str = "memory"):
     with open("search_audit.log", "a") as f:
         f.write(f"{log_entry['timestamp']} | k={log_entry['k']} | top_score={log_entry['top_score']:.4f}\n")
 
-X = np.array([])
+# Mock corpus initialization (10 vectors of dimension 4)
+# Replace with your actual vector database or array initialization
+X = np.random.rand(10, 4)
 
 def build_corpus(X):
+    if X.size == 0:
+        return X
     X_norm = X / np.linalg.norm(X, axis=1, keepdims=True)
     return X_norm
 
@@ -29,12 +32,11 @@ corpus_norm = build_corpus(X)
 
 class QueryRequest(BaseModel):
     query: list[float]
-    k: int = Field(0, ge=1, le=100)
+    k: int = Field(1, ge=1, le=100)
 
 class Topk(BaseModel):
     indices: list[int]
     topk_similarities: list[float]
-
 
 def cosine_similarity_matrix(request: QueryRequest):
     query_vec = np.array(request.query)
@@ -70,7 +72,7 @@ def top_k(
     top_score = scores[0] if len(scores) > 0 else 0.0
 
     background_tasks.add_task(log_query, k=k, top_score=top_score)
-    # Return a dict matching Topk schema, converting NumPy arrays to Python lists
+
     return {
         "indices": candidates.tolist(),
         "topk_similarities": matrix[candidates].tolist()
